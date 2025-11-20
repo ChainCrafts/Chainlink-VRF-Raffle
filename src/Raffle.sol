@@ -31,14 +31,15 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  * @dev Implements Chainlink VRFv2.5
  */
 contract Raffle is VRFConsumerBaseV2Plus {
-    /** Errors */
+    /**
+     * Errors
+     */
     error Raffle__sendMoreToEnterRaffle();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
 
-
     /* type decleratioin */
-    enum RaffleState{
+    enum RaffleState {
         OPEN,
         CALCULATING
     }
@@ -87,7 +88,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         if (msg.value < i_enteranceFee) {
             revert Raffle__sendMoreToEnterRaffle();
         }
-        if(s_raffleState != RaffleState.OPEN){
+        if (s_raffleState != RaffleState.OPEN) {
             revert Raffle__RaffleNotOpen();
         }
         // for sol version >0.8.26 only works in via-IR:
@@ -107,26 +108,23 @@ contract Raffle is VRFConsumerBaseV2Plus {
         }
         s_raffleState = RaffleState.CALCULATING;
 
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
-            .RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATION,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: NUM_OF_WORDS,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
-                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
-                )
-            });
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_keyHash,
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATION,
+            callbackGasLimit: i_callbackGasLimit,
+            numWords: NUM_OF_WORDS,
+            extraArgs: VRFV2PlusClient._argsToBytes(
+                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+            )
+        });
 
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
     }
+
     //CEI : Checks, Effects, Interactions
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         //1.checks
         //2.effects (Update State)
         uint256 indexOfWinner = randomWords[0] % s_players.length;
@@ -136,20 +134,20 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_raffleState = RaffleState.OPEN;
         s_players = new address payable[](0);
         s_lastTimeStamp = block.timestamp;
-        emit WinnerPicked(s_recentWinner); //emit should be before any external call or Interaction 
+        emit WinnerPicked(s_recentWinner); //emit should be before any external call or Interaction
 
         //3.Interactions (External Calls)
-        (bool success,) = recentWinner.call{value:address(this).balance}("");
-        if(!success){
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
+        if (!success) {
             revert Raffle__TransferFailed();
         }
 
         // 4. Protocol Invariants (The Safety Net)
-
-        
     }
 
-    /** getter functions */
+    /**
+     * getter functions
+     */
     function getEnteranceFee() external view returns (uint256) {
         return i_enteranceFee;
     }
