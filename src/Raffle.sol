@@ -19,7 +19,7 @@
 // 7. Private functions
 // 8. View and pure functions
 
-// SPDX-License-Identifier: SEE LICENSE IN LICENSE
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
@@ -37,6 +37,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__sendMoreToEnterRaffle();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
+    error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLenght, uint256 raffleState);
 
     /* type decleratioin */
     enum RaffleState {
@@ -101,30 +102,64 @@ contract Raffle is VRFConsumerBaseV2Plus {
     // 1. get a random number
     // 2. use that random number to pick a winner
     // 3. be automatically called
-    function pickWinner() external {
+
+    //when the winner should be picked?
+    /**
+     * @dev this is the function that chainlink nodes will call to see if
+     * the lottary is ready to have a winner picked
+     * The following should be true in order to ```updateneeded``` be true:
+     * 1. The time interval has passed between the raffle runs.
+     * 2. Lottery is open
+     * 3. Contract has ETH (has balance and that means it has players)
+     * 4. Implicitly your subscription has link
+     * @param - ignored
+     * @return updateNeeded true if it is time to start a new lottary
+     * @return
+     */
+    function checkUpkeeper(
+        bytes memory /*checkData */
+    ) public view returns (bool updateNeeded, bytes memory /*performData */) {
+        bool timeHasPassed = block.timestamp - s_lastTimeStamp >= i_interval;
+        bool isOpen = s_raffleState == RaffleState.OPEN;
+        bool hasBalance = address(this).balance > 0;
+        bool hasPlayers = s_players.length > 0;
+
+        updateNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
+        return (updateNeeded, hex"");
+    }
+
+    function performUpkeep(bytes calldata /* performData */) external {
         // the first thing we need to know is to check to see if enough time has passed
-        if (block.timestamp - s_lastTimeStamp < i_interval) {
-            revert();
-        }
+        // if (block.timestamp - s_lastTimeStamp < i_interval) {
+        //     revert();
+        // }
+        (bool upkeepNeeded,) = checkUpkeeper("");
+        if(!upkeepNeeded){
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
+        }        
         s_raffleState = RaffleState.CALCULATING;
 
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
-            keyHash: i_keyHash,
-            subId: i_subscriptionId,
-            requestConfirmations: REQUEST_CONFIRMATION,
-            callbackGasLimit: i_callbackGasLimit,
-            numWords: NUM_OF_WORDS,
-            extraArgs: VRFV2PlusClient._argsToBytes(
-                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
-                VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
-            )
-        });
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
+            .RandomWordsRequest({
+                keyHash: i_keyHash,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATION,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_OF_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                )
+            });
 
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+        /* uint256 requestId = */ s_vrfCoordinator.requestRandomWords(request);
     }
 
     //CEI : Checks, Effects, Interactions
-    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+    function fulfillRandomWords(
+        uint256 /*requestId*/,
+        uint256[] calldata randomWords
+    ) internal override {
         //1.checks
         //2.effects (Update State)
         uint256 indexOfWinner = randomWords[0] % s_players.length;
@@ -137,7 +172,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit WinnerPicked(s_recentWinner); //emit should be before any external call or Interaction
 
         //3.Interactions (External Calls)
-        (bool success,) = recentWinner.call{value: address(this).balance}("");
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
         if (!success) {
             revert Raffle__TransferFailed();
         }
