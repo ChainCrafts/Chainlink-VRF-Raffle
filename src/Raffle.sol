@@ -116,7 +116,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
      * @return updateNeeded true if it is time to start a new lottary
      * @return
      */
-    function checkUpkeeper(
+    function checkUpkeep(
         bytes memory /*checkData */
     )
         public
@@ -144,7 +144,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         // if (block.timestamp - s_lastTimeStamp < i_interval) {
         //     revert();
         // }
-        (bool upkeepNeeded,) = checkUpkeeper("");
+        (bool upkeepNeeded,) = checkUpkeep("");
         if (!upkeepNeeded) {
             revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
