@@ -2,6 +2,9 @@
 cache/
 out/
 
+# Dependencies (installed via forge install)
+lib/
+
 # Ignores development broadcast logs
 !/broadcast
 /broadcast/*/31337/
@@ -12,3 +15,41 @@ docs/
 
 # Dotenv file
 .env
+.env.local
+.env.*.local
+
+# Coverage
+coverage/
+lcov.info
+coverage.txt
+
+# Gas snapshots (optional - uncomment if you want to track)
+# .gas-snapshot
+
+# Node modules (if using npm packages)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Foundry cache
+.forge-snapshots/
+
+# Test failures cache
+cache/test-failures
+
+# Private keys - NEVER commit these!
+*.pem
+*.key
+keystore/
+
+# Local development
+anvil.json
