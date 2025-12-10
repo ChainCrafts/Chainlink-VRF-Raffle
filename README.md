@@ -159,9 +159,7 @@ make deploy-sepolia
 - [Chainlink Automation](https://docs.chain.link/chainlink-automation) - Automated execution
 - [Solmate](https://github.com/transmissions11/solmate) - Gas-optimized contracts
 
-## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 
 
